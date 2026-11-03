@@ -1,0 +1,21 @@
+params:
+  - id: admin_username
+    type: string
+    name: Admin username
+    description: "Username of the bootstrap administrator."
+    default_value: "admin"
+    optional: false
+  - id: admin_password
+    type: secret
+    name: Admin password
+    description: "Password of the bootstrap administrator, at least 12 characters."
+    default_value: "$random(len=20)"
+    optional: false
+locales:
+  zh:
+    admin_username:
+      name: 管理员用户名
+      description: 引导管理员的用户名。
+    admin_password:
+      name: 管理员密码
+      description: 引导管理员的密码，至少 12 位。默认随机生成，不存在内置弱口令。

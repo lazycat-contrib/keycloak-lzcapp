@@ -1,0 +1,18 @@
+package: community.lazycat.app.keycloak
+name: Keycloak
+version: 0.0.0
+description: "Identity and access management: single sign-on, OIDC and SAML for your other apps."
+min_os_version: "1.5.0"
+homepage: https://www.keycloak.org/
+author: Red Hat / Keycloak community
+license: Apache-2.0
+permissions:
+  required:
+    - net.internet
+locales:
+  zh:
+    name: Keycloak
+    description: "身份与访问管理：给其他应用提供单点登录，支持 OIDC 与 SAML。"
+  en:
+    name: Keycloak
+    description: "Identity and access management: single sign-on, OIDC and SAML for your other apps."

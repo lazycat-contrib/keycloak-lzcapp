@@ -1,0 +1,88 @@
+application:
+  subdomain: keycloak
+  multi_instance: false
+  upstreams:
+    - location: /package-licenses/
+      backend: file:///lzcapp/pkg/content/licenses/
+    - location: /
+      backend: http://keycloak:8080/
+
+services:
+  db:
+    image: docker.1ms.run/library/postgres:16-alpine
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=keycloak
+      - |-
+        POSTGRES_PASSWORD={{ stable_secret "keycloak_db_password" | replace "\r" "" | replace "\n" "" }}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U keycloak -d keycloak
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    binds:
+      - /lzcapp/var/pgdata:/var/lib/postgresql/data
+
+  keycloak:
+    # upstream: keycloak/keycloak:26.8.1
+    image: docker.1ms.run/keycloak/keycloak:26.8.1
+    depends_on:
+      - db
+    # The image ships no default command. `start` is the production profile;
+    # `start-dev` refuses to run with a real database and is not for stores.
+    command:
+      - start
+    environment:
+      # TLS ends at the ingress, so Keycloak has to be told its public URL and
+      # to trust the forwarded headers; otherwise generated links point at the
+      # container's own address.
+      - |-
+        KC_HOSTNAME=https://{{ .S.AppDomain }}
+      - KC_HTTP_ENABLED=true
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HOSTNAME_STRICT=false
+      # "postgres" is Keycloak's own driver name for PostgreSQL.
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgres://db:5432/keycloak
+      - KC_DB_USERNAME=keycloak
+      - |-
+        KC_DB_PASSWORD={{ stable_secret "keycloak_db_password" | replace "\r" "" | replace "\n" "" }}
+      # 26.x renamed the bootstrap admin variables; the old KEYCLOAK_ADMIN_*
+      # names are ignored now.
+      - KC_BOOTSTRAP_ADMIN_USERNAME={{ .U.admin_username }}
+      - |-
+        KC_BOOTSTRAP_ADMIN_PASSWORD={{ .U.admin_password }}
+      - KC_HEALTH_ENABLED=true
+      - TZ=Asia/Shanghai
+    binds:
+      # themes, providers and the local cache live here; realms are in Postgres
+      - /lzcapp/var/data:/opt/keycloak/data
+
+usage: |
+  Keycloak 是身份与访问管理服务：给其他应用提供单点登录（SSO），支持 OIDC 与 SAML。
+
+  使用方法：
+  1. 打开应用，点"Administration Console"，用你安装时设置的管理员用户名和密码登录。
+  2. 首次进入先创建一个 Realm（可以理解为"租户"，每个 Realm 有独立用户体系）。
+  3. 在 Realm 里新建 Client，填入你的应用回调地址，Keycloak 会给出
+     Client ID 与 Client Secret，把它填到对应应用的 OAuth/OIDC 配置里。
+  4. 之后用户就能用 Keycloak 的账号登录各个应用，权限和角色都在这里统一管理。
+
+  数据与安全：
+  - 用户、Realm、密钥存在 PostgreSQL（/lzcapp/var/pgdata），
+    主题与本地缓存存在 /lzcapp/var/data。卸载应用会一并删除，请定期备份。
+  - 管理员账号密码来自安装参数，密码默认随机生成，不存在内置弱口令；
+    该账号仅在首次启动、库里没有管理员时创建。
+  - 数据库密码由平台稳定密钥生成，每个部署不同。
+  - 应用经懒猫入口鉴权访问；已配置对外地址与反向代理头，生成的链接指向正确域名。
+
+  说明：
+  - 双容器：Keycloak + PostgreSQL 16，启动顺序由依赖关系保证。
+  - 使用生产模式（start）而非开发模式，数据持久化在数据库中。
+  - 首次启动要做数据库迁移，打开可能需要等半分钟到一分钟。
+  - 未配置邮件服务，找回密码与邮件验证不可用。
+  - 未做真机验证：登录管理台、建 Realm、配置 Client 以及重启后持久化
+    均未在设备上实测。
