@@ -1,6 +1,11 @@
 application:
   subdomain: keycloak
   multi_instance: false
+  # Keycloak is itself the identity provider: OIDC and SAML clients must
+  # reach the token and discovery endpoints directly, and a second login
+  # gate in front of it breaks every client redirect flow.
+  public_path:
+    - /
   upstreams:
     - location: /package-licenses/
       backend: file:///lzcapp/pkg/content/licenses/
@@ -77,7 +82,10 @@ usage: |
   - 管理员账号密码来自安装参数，密码默认随机生成，不存在内置弱口令；
     该账号仅在首次启动、库里没有管理员时创建。
   - 数据库密码由平台稳定密钥生成，每个部署不同。
-  - 应用经懒猫入口鉴权访问；已配置对外地址与反向代理头，生成的链接指向正确域名。
+  - 应用直接对外开放，由 Keycloak 自己的登录页鉴权：
+    它本身就是身份提供者，OIDC/SAML 客户端和客户端库必须能直接访问
+    token 与 discovery 端点，前面再套一层平台鉴权会让所有客户端跳转流程失效。
+    已配置对外地址与反向代理头，生成的链接指向正确域名。
 
   说明：
   - 双容器：Keycloak + PostgreSQL 16，启动顺序由依赖关系保证。
