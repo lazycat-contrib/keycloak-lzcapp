@@ -1,6 +1,6 @@
 package: community.lazycat.app.keycloak
 name: Keycloak
-version: 0.0.0
+version: 26.8.1
 description: "Identity and access management: single sign-on, OIDC and SAML for your other apps."
 min_os_version: "1.5.0"
 homepage: https://www.keycloak.org/
